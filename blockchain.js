@@ -1,19 +1,25 @@
 const SHA256 = require('crypto-js/sha256');
 
+class Transaction {
+    constructor(fromAddress, toAddress, amount) {
+        this.fromAddress = fromAddress;
+        this.toAddress = toAddress;
+        this.amount = amount;
+    }
+}
 class Block {
     //index: location of block in chain
     //prevHash: need hash of previous block in chain to maintain integrity
-    constructor(index, time, data, prevHash) {
-        this.index = index;
+    constructor(time, transactions, prevHash) {
         this.time = time;
-        this.data = data;
+        this.transactions = transactions;
         this.prevHash = prevHash;
         this.hash = this.calculateHash();
         this.nonce = 0;
     }
 
     calculateHash() {
-        return SHA256(this.index + this.time + JSON.stringify(this.data) + this.prevHash + this.nonce).toString();
+        return SHA256(this.time + JSON.stringify(this.data) + this.prevHash + this.nonce).toString();
     }
     mineBlock(difficulty) {
         //proof of work
@@ -32,7 +38,9 @@ class BlockChain {
         //array of blocks
         this.chain = [this.createGenesisBlock()];
         //difficulty controls how fast blocks can be added to the blockchain
-        this.difficulty = 5;
+        this.difficulty = 2;
+        this.pendingTransactions = [];
+        this.miningReward = 100;
     }
     //create first block(genesis block)
     createGenesisBlock() {
@@ -41,10 +49,34 @@ class BlockChain {
     getRecentBlock() {
         return this.chain[this.chain.length-1];
     }
-    addBlock(newBlock) {
-        newBlock.prevHash = this.getRecentBlock().hash;
-        newBlock.mineBlock(this.difficulty);
-        this.chain.push(newBlock);
+    minePendingTransactions(miningRewardAdress) {
+        //at interval add block (and all pending transactions) to chain and transfer rewards
+        let block = new Block(Date.now(), this.pendingTransactions);
+        block.prevHash = this.getRecentBlock().hash;
+        block.mineBlock(this.difficulty);
+        console.log('Block successfully mined');
+        this.chain.push(block);
+        this.pendingTransactions = [
+            new Transaction(null, miningRewardAdress, this.miningReward)
+        ];
+
+    }
+    createTransaction(transaction) {
+        this.pendingTransactions.push(transaction);
+    }
+
+    getBalanceOfAddress(address) {
+        let balance = 0;
+        for(const block of this.chain) {
+            for(const trans of block.transactions) {
+                if(trans.fromAddress === address) {
+                    balance -= trans.amount;
+                } else if(trans.toAddress === address) {
+                    balance += trans.amount;
+                }
+            }
+        }
+        return balance;
     }
 
     isChainValid() {
@@ -62,9 +94,20 @@ class BlockChain {
     }
 }
 // let myCoin = new BlockChain();
+// myCoin.createTransaction(new Transaction('address1','address2',100));
+// myCoin.createTransaction(new Transaction('address2','address1',50));
+
+// console.log('\n Starting miner.');
+// myCoin.minePendingTransactions('myaddress');
+// console.log('Balance of myaddress', myCoin.getBalanceOfAddress('myaddress'));
+
+
+// console.log('\n Starting miner.');
+// myCoin.minePendingTransactions('myaddress');
+// console.log('Balance of myaddress', myCoin.getBalanceOfAddress('myaddress'));
 
 // console.log('Mining block 1...');
 // myCoin.addBlock(new Block(1,"12/25/2022",{amount: 4}));
 
-// console.log('Mining block 2...');
+// console.log('Mining block 2...'); 
 // myCoin.addBlock(new Block(1,"12/26/2022",{amount: 10}));
